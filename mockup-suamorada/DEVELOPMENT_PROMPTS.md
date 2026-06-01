@@ -1658,6 +1658,248 @@ SEGURANÇA OBRIGATÓRIA:
 
 ---
 
-*Documento gerado em 2026-05-30 | Sua Morada — Portal Imobiliário Portugal*
-*Stack: Next.js 15 + PostgreSQL/PostGIS + Redis + Mapbox + Cloudflare R2 + Vercel + Hetzner*
+## IMPLEMENTAÇÃO REAL — O que foi construído vs. o que estava planeado
+
+> Esta secção documenta decisões e componentes que emergiram durante o desenvolvimento
+> e que não constavam nos prompts originais. Serve de referência para iterações futuras.
+
+---
+
+### Alterações ao Design Original
+
+#### SearchBar — Multi-select em vez de Single-select
+```
+PLANEADO:   <select> nativo para Tipo de Imóvel e Quartos (selecção única)
+CONSTRUÍDO: Radix Popover com checkboxes para selecção múltipla
+
+Componente:  components/search/SearchBar.tsx → MultiSelect (interno)
+Dependência: @radix-ui/react-popover
+
+Comportamento:
+- Cada opção tem checkbox com tick de confirmação
+- Badge laranja com contador aparece no campo fechado (ex: "2 seleccionados 🔴2")
+- Botão "Limpar selecção" no topo do dropdown
+- Valores passados como array na query string: ?tipos=apartment,house&quartos=2,3
+
+Razão da mudança: utilizadores frequentemente querem pesquisar T2 E T3 ao mesmo tempo,
+ou Apartamentos E Moradias. O select nativo limitava essa experiência.
+```
+
+#### Navegação — Itens removidos
+```
+PLANEADO:  Navbar com: Comprar | Arrendar | Vender | Avaliar | Agências
+CONSTRUÍDO: Navbar com: Comprar | Arrendar | Vender
+
+Avaliar e Agências removidos por decisão do produto — simplificar o menu no MVP.
+Podem ser re-adicionados quando as páginas estiverem completas.
+
+SearchBar Tabs:
+PLANEADO:  3 tabs: Comprar | Arrendar | Vender
+CONSTRUÍDO: 2 tabs: Comprar | Arrendar
+Razão: Vender tem flow próprio (/vender) — não faz sentido como tab de pesquisa.
+```
+
+#### Páginas /comprar e /arrendar
+```
+PLANEADO:  Prompts descreviam apenas /comprar/[distrito]/[tipo] com resultados
+CONSTRUÍDO: /comprar e /arrendar também renderizam ListingResultsClient directamente
+           (sem filtros de distrito/tipo pré-aplicados)
+
+Também construído: /vender inclui os benefícios + formulário multi-step integrado
+```
+
+---
+
+### Componentes Novos Não Planeados
+
+#### MultiSelect (dentro de SearchBar)
+```tsx
+// components/search/SearchBar.tsx
+// Componente interno MultiSelect com Radix Popover
+// Props: label, placeholder, options[], selected[], onChange, minWidth
+// Funcionalidades: toggle individual, limpar tudo, badge de contador
+```
+
+#### DashboardSidebar + DashboardHeader
+```tsx
+// components/dashboard/DashboardSidebar.tsx — sidebar navy com nav + user avatar
+// components/dashboard/DashboardHeader.tsx  — header branco com título + notificações
+// Não detalhados nos prompts originais (apenas o layout geral estava descrito)
+```
+
+#### StatCard
+```tsx
+// components/dashboard/StatCard.tsx
+// Card de métrica com accent bar colorida, ícone, valor, subtítulo e trend indicator
+// Reutilizável em qualquer página de analytics
+```
+
+#### ViewsChart (Recharts)
+```tsx
+// components/dashboard/ViewsChart.tsx
+// Gráfico de barras dos últimos 30 dias com tooltip personalizado navy
+// Dependência: recharts + date-fns
+```
+
+#### PublishProgress
+```tsx
+// components/publish/PublishProgress.tsx
+// Barra de progresso dos 4 steps com estado: pendente / activo (navy ring) / completo (✓ verde)
+```
+
+---
+
+### APIs Adicionadas Não Planeadas
+
+#### POST /api/properties/[id]/contact
+```
+Não estava nos prompts originais.
+Recebe: { name, email, phone, message }
+Acção:  incrementa contacts_count + envia email via Resend + guarda lead na DB
+Ficheiro: app/api/properties/[id]/contact/route.ts
+```
+
+#### GET /api/og
+```
+Open Graph dinâmico com @vercel/og (edge runtime).
+Gera imagens 1200×630 personalizadas por imóvel para partilha social.
+Params: title, price, location, type
+Ficheiro: app/api/og/route.tsx
+```
+
+#### GET /api/health
+```
+Health check simples — retorna { status, timestamp, version }.
+Usado pelo UptimeRobot para monitorização.
+Ficheiro: app/api/health/route.ts
+```
+
+---
+
+### Correcções de Acessibilidade Não Planeadas
+
+#### Dialog.Title obrigatório (Radix)
+```
+PROBLEMA: Radix DialogContent requer DialogTitle para leitores de ecrã.
+SOLUÇÃO:  Substituir <span> pelo <Dialog.Title> no header do menu mobile.
+Ficheiro: components/layout/Header.tsx linha ~113
+```
+
+#### aria-describedby no DialogContent
+```
+PROBLEMA: Warning "Missing Description for DialogContent" do Radix UI.
+SOLUÇÃO:  Adicionar aria-describedby={undefined} ao Dialog.Content do menu mobile.
+Ficheiro: components/layout/Header.tsx
+```
+
+#### suppressHydrationWarning no SearchBar
+```
+PROBLEMA: A extensão Dashlane injeta data-dashlane-* nos inputs/selects causando
+          hydration mismatch inofensivo mas reportado pelo React como erro.
+SOLUÇÃO:  suppressHydrationWarning no container <div> do SearchBar.
+Nota:     Não afecta funcionalidade — é apenas para silenciar o aviso da extensão.
+Ficheiro: components/search/SearchBar.tsx
+```
+
+---
+
+### Decisões de Arquitectura Tomadas Durante o Desenvolvimento
+
+#### Middleware simplificado
+```
+PLANEADO:  Middleware com auth() do NextAuth verificando sessão no edge
+CONSTRUÍDO: Middleware simples que lê o cookie JWT directamente (mais compatível
+            com Next.js 16 que deprecou o padrão anterior de middleware)
+Ficheiro: middleware.ts
+```
+
+#### Mock data nos detalhes de imóvel
+```
+A página /imovel/[slug] usa dados mock enquanto a DB não está configurada.
+Quando a DB Hetzner estiver ligada, substituir getMockProperty() pela query real:
+  import { getPropertyBySlug } from "@/lib/db/queries/properties"
+Ficheiro: app/imovel/[slug]/page.tsx → função getMockProperty()
+```
+
+#### Seed com dados reais de Portugal
+```
+lib/db/seed.ts tem 10 imóveis fictícios mas com coordenadas reais de:
+Lisboa (Campo de Ourique, Mouraria, Príncipe Real), Cascais, Sintra,
+Porto (Foz do Douro, Bonfim), Braga, Setúbal, Faro.
+Útil para testes de mapa e pesquisa geográfica.
+```
+
+#### Zustand persistido no localStorage
+```
+O formulário de publicação (usePublishStore) persiste o estado entre navegações.
+Cuidado: object URLs de fotos (preview) são revogados após reload —
+o store exclui o campo preview ao serializar (partialize).
+Ficheiro: components/publish/usePublishStore.ts → partialize config
+```
+
+---
+
+### Dependências Adicionadas Não Planeadas
+
+| Pacote                     | Versão  | Razão                                          |
+|----------------------------|---------|------------------------------------------------|
+| `@radix-ui/react-popover`  | ^1.x    | Multi-select dropdown na SearchBar             |
+| `@radix-ui/react-tabs`     | ^1.x    | Tabs em formulários e páginas                  |
+| `@radix-ui/react-checkbox` | ^1.x    | Checkboxes acessíveis nos filtros              |
+| `recharts`                 | ^2.x    | Gráfico de barras no dashboard                 |
+| `date-fns`                 | ^3.x    | Formatação de datas em PT                      |
+| `swr`                      | ^2.x    | Cache e revalidação das queries de pesquisa    |
+| `zustand`                  | ^4.x    | Estado global do formulário de publicação      |
+| `react-dropzone`           | ^14.x   | Upload drag-and-drop de fotos                  |
+| `yet-another-react-lightbox` | ^3.x  | Galeria de fotos com lightbox                  |
+| `@aws-sdk/client-s3`       | ^3.x    | Upload assinado para Cloudflare R2             |
+| `@aws-sdk/s3-request-presigner` | ^3.x | URLs pré-assinadas do R2                    |
+| `next-auth@beta`           | v5.x    | Autenticação (Google + Magic Link)             |
+| `@auth/drizzle-adapter`    | ^1.x    | Adaptador NextAuth para Drizzle ORM            |
+| `resend`                   | ^3.x    | Email transaccional                            |
+| `web-vitals`               | ^3.x    | Medição de Core Web Vitals                     |
+| `@vercel/og`               | ^0.x    | Open Graph images dinâmicas (edge)             |
+
+---
+
+### Ficheiros Gerados que Não Estavam nos Prompts
+
+```
+auth.ts                              ← Configuração NextAuth v5
+middleware.ts                        ← Protecção de rotas /dashboard
+vercel.json                          ← Headers de segurança + região lhr1
+scripts/pre-launch-checklist.md      ← Checklist completa de pré-lançamento
+lib/vitals.ts                        ← Reporting de Web Vitals para Plausible
+lib/storage/r2.ts                    ← Signed URLs para Cloudflare R2
+app/api/og/route.tsx                 ← Open Graph edge function
+app/entrar/page.tsx                  ← Página de login (Google + Magic Link)
+app/entrar/verificar/               ← Placeholder verificação de email
+components/dashboard/StatCard.tsx    ← Card de métrica reutilizável
+components/dashboard/ViewsChart.tsx  ← Gráfico recharts
+components/ads/AdUnit.tsx            ← Wrapper AdSense com lazy load + RGPD
+```
+
+---
+
+### Itens dos Prompts Originais Ainda Não Implementados
+
+| Item                              | Prompt | Prioridade | Notas                              |
+|-----------------------------------|--------|------------|-------------------------------------|
+| Alertas por email (saved searches)| 9      | Alta       | Schema ready, cron job por fazer    |
+| Badge verificação + anti-fraude   | 10     | Alta       | Admin panel por construir           |
+| PWA / Service Worker              | 11     | Média      | next-pwa a instalar                 |
+| AVM ligado à DB real              | 12     | Média      | Página /avaliar tem UI, falta API   |
+| Dashboard para agências           | 13     | Média      | Dashboard individual feito, falta multi-agente |
+| Planos Stripe                     | 13     | Baixa      | Integração Stripe por fazer         |
+| Agregação cross-portal            | 14     | Baixa      | Worker BullMQ por construir         |
+| RGPD cookie banner                | —      | Alta       | Componente CookieBanner por fazer   |
+| Email templates React Email       | —      | Alta       | Template de contacto por fazer      |
+| Página /agencias/[slug]           | —      | Média      | Route existe, página vazia          |
+| Imóveis similares no detalhe      | —      | Média      | Placeholder no detalhe, query por ligar |
+| Mapa real no detalhe do imóvel    | —      | Média      | Placeholder, Mapbox a integrar      |
+
+---
+
+*Última actualização: 2026-05-31 | Sua Morada v0.1.0 — suamorada.pt*
+*Stack: Next.js 16 + PostgreSQL/PostGIS + Redis + Mapbox + Cloudflare R2 + Vercel + Hetzner*
 
