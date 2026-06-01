@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
-import { SearchBar } from "@/components/search/SearchBar";
+import { SearchBar } from "@/components/search/SearchBarWrapper";
 import { ShieldCheck, Clock, Star, TrendingUp, ArrowRight } from "lucide-react";
 import Link from "next/link";
 

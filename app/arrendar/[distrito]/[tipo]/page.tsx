@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { Header } from "@/components/layout/Header";
 import { DISTRICT_SLUGS, PROPERTY_TYPE_SLUGS, PROPERTY_TYPE_LABELS } from "@/types/property";
+import { ListingResultsWrapper as ListingResultsClient } from "@/components/listing/ListingResultsWrapper";
 
 interface Props {
   params: Promise<{ distrito: string; tipo: string }>;
@@ -28,12 +30,18 @@ export function generateStaticParams() {
 export default async function ArendarDistritoTipoPage({ params }: Props) {
   const { distrito, tipo } = await params;
   if (!DISTRICT_SLUGS[distrito] || !PROPERTY_TYPE_SLUGS[tipo]) notFound();
+  const label = DISTRICT_SLUGS[distrito];
+  const tipoLabel = PROPERTY_TYPE_LABELS[PROPERTY_TYPE_SLUGS[tipo]];
   return (
-    <main className="min-h-screen flex items-center justify-center bg-warm">
-      <p className="font-serif text-2xl text-navy">
-        {PROPERTY_TYPE_LABELS[PROPERTY_TYPE_SLUGS[tipo]]} para arrendar em{" "}
-        {DISTRICT_SLUGS[distrito]} — em construção
-      </p>
-    </main>
+    <div className="flex flex-col min-h-screen">
+      <Header />
+      <ListingResultsClient
+        listingType="arrendar"
+        distrito={distrito}
+        tipoImovel={PROPERTY_TYPE_SLUGS[tipo]}
+        distritoLabel={label}
+        tipoLabel={tipoLabel}
+      />
+    </div>
   );
 }

@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Header } from "@/components/layout/Header";
 import { DISTRICT_SLUGS } from "@/types/property";
-import { ListingResultsClient } from "@/components/listing/ListingResultsClient";
+import { ListingResultsWrapper as ListingResultsClient } from "@/components/listing/ListingResultsWrapper";
 
 interface Props { params: Promise<{ distrito: string }> }
 

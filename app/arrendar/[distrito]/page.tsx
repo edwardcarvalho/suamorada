@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Header } from "@/components/layout/Header";
 import { DISTRICT_SLUGS } from "@/types/property";
-import { ListingResultsClient } from "@/components/listing/ListingResultsClient";
+import { ListingResultsWrapper as ListingResultsClient } from "@/components/listing/ListingResultsWrapper";
 
 interface Props { params: Promise<{ distrito: string }> }
 
@@ -26,9 +26,9 @@ export default async function ArendarDistritoPage({ params }: Props) {
   const label = DISTRICT_SLUGS[distrito];
   if (!label) notFound();
   return (
-    <>
+    <div className="flex flex-col min-h-screen">
       <Header />
       <ListingResultsClient listingType="arrendar" distrito={distrito} distritoLabel={label} />
-    </>
+    </div>
   );
 }

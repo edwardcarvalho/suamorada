@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { Header } from "@/components/layout/Header";
 import { DISTRICT_SLUGS, PROPERTY_TYPE_SLUGS, PROPERTY_TYPE_LABELS } from "@/types/property";
-import { ListingResultsClient } from "@/components/listing/ListingResultsClient";
+import { ListingResultsWrapper as ListingResultsClient } from "@/components/listing/ListingResultsWrapper";
 
 interface Props {
   params: Promise<{ distrito: string; tipo: string }>;
@@ -13,7 +14,6 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const distritoLabel = DISTRICT_SLUGS[distrito];
   const propertyType  = PROPERTY_TYPE_SLUGS[tipo];
   if (!distritoLabel || !propertyType) return {};
-
   const tipoLabel = PROPERTY_TYPE_LABELS[propertyType];
   return {
     title: `${tipoLabel} para Venda em ${distritoLabel}`,
@@ -33,18 +33,20 @@ export default async function ComprarDistritoTipoPage({ params, searchParams }: 
   const sp = await searchParams;
   if (!DISTRICT_SLUGS[distrito] || !PROPERTY_TYPE_SLUGS[tipo]) notFound();
 
-  const propertyType = PROPERTY_TYPE_SLUGS[tipo];
   const distritoLabel = DISTRICT_SLUGS[distrito];
-  const tipoLabel = PROPERTY_TYPE_LABELS[propertyType];
+  const tipoLabel     = PROPERTY_TYPE_LABELS[PROPERTY_TYPE_SLUGS[tipo]];
 
   return (
-    <ListingResultsClient
-      listingType="comprar"
-      distrito={distrito}
-      tipoImovel={tipo}
-      distritoLabel={distritoLabel}
-      tipoLabel={tipoLabel}
-      initialSort={(sp.sort as string) ?? "newest"}
-    />
+    <div className="flex flex-col min-h-screen">
+      <Header />
+      <ListingResultsClient
+        listingType="comprar"
+        distrito={distrito}
+        tipoImovel={tipo}
+        distritoLabel={distritoLabel}
+        tipoLabel={tipoLabel}
+        initialSort={(sp.sort as string) ?? "newest"}
+      />
+    </div>
   );
 }
