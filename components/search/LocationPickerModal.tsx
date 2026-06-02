@@ -87,12 +87,13 @@ function layerStyle(isSelected: boolean, isHover = false): GeoStyle {
 }
 
 /* ── Camada GeoJSON genérica ─────────────────────────────────────────── */
-function GeoLayer({ data, nameKey, selectedLabels, tooltipLabel, onClick }: {
+function GeoLayer({ data, nameKey, selectedLabels, tooltipLabel, onClick, showLabels = false }: {
   data: GeoJSON.FeatureCollection;
   nameKey: string;
   selectedLabels: string[];
   tooltipLabel?: string;
   onClick: (name: string, bounds: L.LatLngBounds, center: L.LatLng) => void;
+  showLabels?: boolean;
 }) {
   const key = selectedLabels.join("|") + data.features.length;
 
@@ -105,18 +106,29 @@ function GeoLayer({ data, nameKey, selectedLabels, tooltipLabel, onClick }: {
     const name: string = f.properties?.[nameKey] ?? "";
     const path = layer as L.Path;
 
+    // Label permanente (só quando showLabels=true)
+    if (showLabels) {
+      path.bindTooltip(name, {
+        permanent: true,
+        direction: "center",
+        className: "leaflet-label-geo",
+      });
+    }
+
     path.on({
       mouseover(e) {
         if (!selectedLabels.includes(name)) (e.target as L.Path).setStyle(layerStyle(false, true) as L.PathOptions);
-        (e.target as L.Path).bindTooltip(
-          `<b>${name}</b>${tooltipLabel ? `<br/><span style="font-size:10px;opacity:.7">${tooltipLabel}</span>` : ""}`,
-          { permanent: false, sticky: true, className: "leaflet-tooltip-district" }
-        ).openTooltip();
+        if (!showLabels) {
+          (e.target as L.Path).bindTooltip(
+            `<b>${name}</b>${tooltipLabel ? `<br/><span style="font-size:10px;opacity:.7">${tooltipLabel}</span>` : ""}`,
+            { permanent: false, sticky: true, className: "leaflet-tooltip-district" }
+          ).openTooltip();
+        }
       },
       mouseout(e) {
         const sel = selectedLabels.includes(name);
         (e.target as L.Path).setStyle(layerStyle(sel) as L.PathOptions);
-        (e.target as L.Path).closeTooltip();
+        if (!showLabels) (e.target as L.Path).closeTooltip();
       },
       click(e: L.LeafletMouseEvent) {
         L.DomEvent.stopPropagation(e);
@@ -346,7 +358,7 @@ export function LocationPickerModal({ onSelect, onClose, initialValue = "" }: Pr
 
   const tileUrl = tileMode === "satellite"
     ? "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
-    : "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png";
+    : "https://{s}.basemaps.cartocdn.com/rastertiles/voyager_nolabels/{z}/{x}/{y}{r}.png";
 
   /* ── Breadcrumb ── */
   const breadcrumb: { label: string; level: DrillLevel }[] = [{ label: "Portugal", level: "district" }];
@@ -463,6 +475,7 @@ export function LocationPickerModal({ onSelect, onClose, initialValue = "" }: Pr
               nameKey="NAME_1"
               selectedLabels={selected.filter(s => s.level === "district").map(s => s.label)}
               tooltipLabel="Clique para ver concelhos"
+              showLabels={true}
               onClick={(name, bounds) => drillDistrict(name, bounds)}
             />
           )}
@@ -474,6 +487,7 @@ export function LocationPickerModal({ onSelect, onClose, initialValue = "" }: Pr
               nameKey="NAME_2"
               selectedLabels={selected.filter(s => s.level === "municipality").map(s => s.label)}
               tooltipLabel="Clique para ver freguesias"
+              showLabels={true}
               onClick={(name, bounds, center) => {
                 addLocation({ label: name, level: "municipality", lat: center.lat, lng: center.lng });
                 drillMunicipality(name, bounds);
@@ -488,6 +502,7 @@ export function LocationPickerModal({ onSelect, onClose, initialValue = "" }: Pr
               nameKey="NAME_3"
               selectedLabels={selected.filter(s => s.level === "parish").map(s => s.label)}
               tooltipLabel="Clique para seleccionar"
+              showLabels={true}
               onClick={(name, _bounds, center) => selectParish(name, center)}
             />
           )}
