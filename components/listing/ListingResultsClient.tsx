@@ -2,7 +2,8 @@
 
 import * as React from "react";
 import dynamic from "next/dynamic";
-import { Map, List, SlidersHorizontal, MapPinOff } from "lucide-react";
+import { Map, List, SlidersHorizontal, MapPinOff, PenLine, X } from "lucide-react";
+import type { BBox } from "@/components/search/ZonePickerModal";
 import { ListingCard, ListingCardSkeleton } from "@/components/listing/ListingCard";
 import { FiltersPanel, EMPTY_FILTERS, countActiveFilters, filtersToParams } from "@/components/listing/FiltersPanel";
 import type { FilterState } from "@/components/listing/FiltersPanel";
@@ -13,6 +14,11 @@ import type { PropertyType } from "@/types/property";
 const PropertyMap = dynamic(
   () => import("@/components/search/PropertyMap").then((m) => m.PropertyMap),
   { ssr: false, loading: () => <MapSkeleton /> }
+);
+
+const ZonePickerModal = dynamic(
+  () => import("@/components/search/ZonePickerModal").then((m) => m.ZonePickerModal),
+  { ssr: false }
 );
 
 function MapSkeleton() {
@@ -44,6 +50,8 @@ export function ListingResultsClient({
   const [mobileView, setMobileView]   = React.useState<"list" | "map">("list");
   const [mapVisible, setMapVisible]   = React.useState(true);
   const [filtersOpen, setFiltersOpen] = React.useState(false);
+  const [zoneOpen, setZoneOpen]       = React.useState(false);
+  const [activeBBox, setActiveBBox]   = React.useState<BBox | null>(null);
   const [filters, setFilters]       = React.useState<FilterState>(EMPTY_FILTERS);
 
   // Quando os filtros mudam, volta à página 1
@@ -64,6 +72,10 @@ export function ListingResultsClient({
     distrito,
     propertyType: propertyType as PropertyType | undefined,
     ...fp,
+    ...(activeBBox ? {
+      minLat: activeBBox.minLat, maxLat: activeBBox.maxLat,
+      minLng: activeBBox.minLng, maxLng: activeBBox.maxLng,
+    } : {}),
     page,
     limit: 20,
     sort: sort as never,
@@ -83,6 +95,32 @@ export function ListingResultsClient({
       {/* ── Barra de resultados ── */}
       <div className="bg-white border-b border-border px-4 py-3 flex items-center justify-between gap-4 shrink-0">
         <div className="flex items-center gap-3 min-w-0">
+          {/* Botão zona no mapa */}
+          <button
+            onClick={() => setZoneOpen(true)}
+            className={cn(
+              "hidden lg:flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-sm font-sans font-medium transition-colors shrink-0",
+              activeBBox
+                ? "border-brand bg-brand/5 text-brand"
+                : "border-border text-muted hover:border-navy hover:text-navy"
+            )}
+            title="Pesquisar por zona no mapa"
+          >
+            <PenLine size={14} />
+            <span className="hidden xl:inline">Zona no mapa</span>
+          </button>
+
+          {/* Badge zona activa + limpar */}
+          {activeBBox && (
+            <button
+              onClick={() => { setActiveBBox(null); setPage(1); }}
+              className="hidden lg:flex items-center gap-1 px-2 py-1 rounded-full bg-brand/10 border border-brand/30 text-brand text-xs font-sans font-medium hover:bg-brand/20 transition-colors"
+              title="Remover filtro de zona"
+            >
+              Zona activa <X size={11} />
+            </button>
+          )}
+
           {/* Botão filtros (mobile) */}
           <button
             onClick={() => setFiltersOpen(true)}
@@ -244,6 +282,24 @@ export function ListingResultsClient({
           </div>
         )}
       </div>
+
+      {/* ── Zone Picker Modal ── */}
+      {zoneOpen && (
+        <ZonePickerModal
+          currentProperties={results as never}
+          initialCenter={
+            results[0]?.lat && results[0]?.lng
+              ? [parseFloat(String(results[0].lat)), parseFloat(String(results[0].lng))]
+              : undefined
+          }
+          onApply={(bbox) => {
+            setActiveBBox(bbox);
+            setPage(1);
+            setZoneOpen(false);
+          }}
+          onClose={() => setZoneOpen(false)}
+        />
+      )}
     </div>
   );
 }

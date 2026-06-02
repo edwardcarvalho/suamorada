@@ -113,6 +113,11 @@ export interface PropertySearchParams {
   extras?: string;              // vírgula-separado: "garage,elevator,pool,garden,ac,balcony,wardrobe,storage"
   andar?: string;               // "ultimo" | "intermedio" | "res_chao"
   publicado?: string;           // "48h" | "semana" | "mes"
+  // Bounding box (zona desenhada no mapa)
+  minLat?: number;
+  maxLat?: number;
+  minLng?: number;
+  maxLng?: number;
   lat?: number;
   lng?: number;
   radiusKm?: number;

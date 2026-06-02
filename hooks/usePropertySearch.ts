@@ -27,6 +27,10 @@ export function usePropertySearch(params: PropertySearchParams) {
   if (params.extras)        q.set("extras",       params.extras);
   if (params.andar)         q.set("andar",        params.andar);
   if (params.publicado)     q.set("publicado",    params.publicado);
+  if (params.minLat)        q.set("minLat",       String(params.minLat));
+  if (params.maxLat)        q.set("maxLat",       String(params.maxLat));
+  if (params.minLng)        q.set("minLng",       String(params.minLng));
+  if (params.maxLng)        q.set("maxLng",       String(params.maxLng));
   if (params.lat)           q.set("lat",          String(params.lat));
   if (params.lng)           q.set("lng",          String(params.lng));
   if (params.page)          q.set("page",         String(params.page));

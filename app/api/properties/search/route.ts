@@ -18,8 +18,12 @@ const schema = z.object({
   energia:     z.string().optional(),              // "A+,A,B"
   estado:      z.string().optional(),              // "new,used,needs_renovation"
   extras:      z.string().optional(),              // "garage,elevator,pool,garden,ac,balcony,wardrobe,storage"
-  andar:       z.string().optional(),              // "ultimo" | "intermedio" | "res_chao"
-  publicado:   z.string().optional(),              // "48h" | "semana" | "mes"
+  andar:       z.string().optional(),
+  publicado:   z.string().optional(),
+  minLat:      z.coerce.number().optional(),
+  maxLat:      z.coerce.number().optional(),
+  minLng:      z.coerce.number().optional(),
+  maxLng:      z.coerce.number().optional(),
   lat:         z.coerce.number().optional(),
   lng:         z.coerce.number().optional(),
   radiusKm:    z.coerce.number().positive().max(50).default(10),
@@ -43,7 +47,12 @@ export async function GET(req: NextRequest) {
   if (p.tipo === "comprar")  conditions.push(eq(properties.listingType, "sale"));
   if (p.tipo === "arrendar") conditions.push(eq(properties.listingType, "rent"));
   if (p.propertyType)        conditions.push(eq(properties.propertyType, p.propertyType as never));
-  if (p.distrito)            conditions.push(eq(properties.addressDistrict, p.distrito));
+  // Suporte a múltiplos distritos (OR) via "distritos" vírgula-separado
+  if (p.distrito) {
+    const vals = p.distrito.split(",").map(s => s.trim()).filter(Boolean);
+    if (vals.length === 1) conditions.push(eq(properties.addressDistrict, vals[0]));
+    else if (vals.length > 1) conditions.push(inArray(properties.addressDistrict, vals));
+  }
   if (p.municipio)           conditions.push(eq(properties.addressMunicipality, p.municipio));
   if (p.minPrice)            conditions.push(gte(properties.price, p.minPrice * 100));
   if (p.maxPrice)            conditions.push(lte(properties.price, p.maxPrice * 100));
@@ -128,6 +137,13 @@ export async function GET(req: NextRequest) {
   } else if (p.andar === "intermedio") {
     conditions.push(sql`${properties.floor} IS NOT NULL AND ${properties.totalFloors} IS NOT NULL AND ${properties.floor} > 0 AND ${properties.floor} < ${properties.totalFloors}`);
   }
+
+  // ── Bounding box (zona desenhada no mapa) ────────────────────────────────
+  // lat/lng estão guardados como TEXT → cast para float no SQL
+  if (p.minLat) conditions.push(sql`${properties.lat}::float >= ${p.minLat}`);
+  if (p.maxLat) conditions.push(sql`${properties.lat}::float <= ${p.maxLat}`);
+  if (p.minLng) conditions.push(sql`${properties.lng}::float >= ${p.minLng}`);
+  if (p.maxLng) conditions.push(sql`${properties.lng}::float <= ${p.maxLng}`);
 
   // ── Publicado ─────────────────────────────────────────────────────────────
   if (p.publicado) {

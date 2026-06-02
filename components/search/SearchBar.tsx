@@ -3,9 +3,16 @@
 import * as React from "react";
 import { useRouter } from "next/navigation";
 import * as Popover from "@radix-ui/react-popover";
+import dynamic from "next/dynamic";
 import { Search, MapPin, ChevronDown, SlidersHorizontal, Check, X } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { cn } from "@/lib/utils";
+import type { LocationResult, LocationSelection } from "./LocationPickerModal";
+
+const LocationPickerModal = dynamic(
+  () => import("./LocationPickerModal").then((m) => m.LocationPickerModal),
+  { ssr: false }
+);
 
 const TIPOS = ["Comprar", "Arrendar"] as const;
 type Tipo = (typeof TIPOS)[number];
@@ -158,8 +165,11 @@ export function SearchBar({
   const [local,       setLocal]       = React.useState(initialLocal);
   const [tiposImovel, setTiposImovel] = React.useState<string[]>(initialTiposImovel);
   const [quartos,     setQuartos]     = React.useState<string[]>(initialQuartos);
-  const [localOpen,   setLocalOpen]   = React.useState(false);
-  const [filtrosOpen, setFiltrosOpen] = React.useState(false);
+  const [localOpen,    setLocalOpen]   = React.useState(false);
+  const [filtrosOpen,  setFiltrosOpen] = React.useState(false);
+  const [mapPickerOpen,  setMapPickerOpen]  = React.useState(false);
+  const [activeBBox,     setActiveBBox]     = React.useState<LocationResult["bbox"] | null>(null);
+  const [activeLocations, setActiveLocations] = React.useState<LocationResult[]>([]);
   const [minPreco,    setMinPreco]    = React.useState("");
   const [maxPreco,    setMaxPreco]    = React.useState("");
 
@@ -193,8 +203,36 @@ export function SearchBar({
     if (localSlug) path += `/${localSlug}`;
     if (tipoSlug && localSlug) path += `/${tipoSlug}`;
 
+    if (activeBBox) {
+      params.set("minLat", String(activeBBox.minLat));
+      params.set("maxLat", String(activeBBox.maxLat));
+      params.set("minLng", String(activeBBox.minLng));
+      params.set("maxLng", String(activeBBox.maxLng));
+    }
+    // Filtra por nível (distrito / município / freguesia)
+    const districts   = activeLocations.filter(l => l.level === "district");
+    const munis       = activeLocations.filter(l => l.level === "municipality");
+    const parishes    = activeLocations.filter(l => l.level === "parish");
+    if (districts.length)  params.set("distrito",  districts.map(l => l.label).join(","));
+    if (munis.length)      params.set("municipio", munis.map(l => l.label).join(","));
+    if (parishes.length)   params.set("freguesia", parishes.map(l => l.label).join(","));
+
     const qs = params.toString();
     router.push(qs ? `${path}?${qs}` : path);
+  }
+
+  function handleLocationSelect(sel: LocationSelection) {
+    setActiveLocations(sel.locations);
+    setActiveBBox(sel.drawBBox ?? null);
+    // Label display: nomes das zonas ou "Zona personalizada"
+    if (sel.drawBBox && sel.locations.length === 0) {
+      setLocal("Zona personalizada");
+    } else if (sel.locations.length === 1) {
+      setLocal(sel.locations[0].label);
+    } else if (sel.locations.length > 1) {
+      setLocal(`${sel.locations.length} zonas seleccionadas`);
+    }
+    setMapPickerOpen(false);
   }
 
   // ── Compact (navbar) ────────────────────────────────────────────────────────
@@ -250,7 +288,7 @@ export function SearchBar({
             className="flex items-center gap-2 px-4 h-full cursor-text py-3"
             onClick={() => { setLocalOpen(true); localRef.current?.focus(); }}
           >
-            <MapPin size={16} className="text-faint shrink-0" />
+            <MapPin size={16} className={cn("shrink-0", activeBBox ? "text-brand" : "text-faint")} />
             <div className="flex flex-col min-w-0 flex-1">
               <span className="text-[10px] font-sans font-semibold uppercase tracking-wider text-faint mb-0.5">
                 Localização
@@ -258,29 +296,53 @@ export function SearchBar({
               <input
                 ref={localRef}
                 value={local}
-                onChange={(e) => { setLocal(e.target.value); setLocalOpen(true); }}
+                onChange={(e) => { setLocal(e.target.value); setLocalOpen(true); setActiveBBox(null); }}
                 onFocus={() => setLocalOpen(true)}
                 onBlur={() => setTimeout(() => setLocalOpen(false), 150)}
                 onKeyDown={(e) => e.key === "Enter" && handleSearch()}
                 placeholder="Lisboa, Cascais, Porto..."
                 className="text-[15px] font-sans font-medium text-ink placeholder:text-faint outline-none bg-transparent w-full leading-tight"
-                style={{ fontSize: "1rem" }}
               />
             </div>
+            {/* Limpar */}
             {local && (
-              <button onClick={(e) => { e.stopPropagation(); setLocal(""); }} className="text-faint hover:text-ink shrink-0">
+              <button
+                onClick={(e) => { e.stopPropagation(); setLocal(""); setActiveBBox(null); }}
+                className="text-faint hover:text-ink shrink-0"
+              >
                 <X size={14} />
               </button>
             )}
+            {/* Botão "Selecionar no mapa" */}
+            <button
+              onClick={(e) => { e.stopPropagation(); setMapPickerOpen(true); setLocalOpen(false); }}
+              title="Selecionar zona no mapa"
+              className={cn(
+                "shrink-0 p-1.5 rounded-lg transition-colors",
+                activeBBox
+                  ? "text-brand bg-brand/10"
+                  : "text-faint hover:text-navy hover:bg-warm"
+              )}
+            >
+              <Search size={15} />
+            </button>
           </div>
 
-          {/* Sugestões */}
+          {/* Sugestões de texto */}
           {localOpen && localFiltrado.length > 0 && (
             <div className="absolute top-full left-0 right-0 mt-1 bg-white rounded-xl shadow-xl border border-border z-[100] overflow-hidden">
-              {localFiltrado.slice(0, 6).map((l) => (
+              {/* Opção "selecionar no mapa" sempre visível */}
+              <button
+                onMouseDown={() => { setMapPickerOpen(true); setLocalOpen(false); }}
+                className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium text-navy hover:bg-navy/5 border-b border-border transition-colors text-left"
+              >
+                <MapPin size={14} className="text-brand shrink-0" />
+                Selecionar zona no mapa…
+              </button>
+              {localFiltrado.slice(0, 5).map((l) => (
                 <button
                   key={l}
-                  onMouseDown={() => { setLocal(l); setLocalOpen(false); }}
+                  onMouseDown={() => { setLocal(l); setLocalOpen(false); setActiveBBox(null); }}
                   className="w-full flex items-center gap-3 px-4 py-3 text-sm text-ink hover:bg-warm transition-colors text-left"
                 >
                   <MapPin size={14} className="text-faint shrink-0" />
@@ -346,6 +408,15 @@ export function SearchBar({
           <ChevronDown size={12} className={cn("transition-transform", filtrosOpen && "rotate-180")} />
         </button>
       </div>
+
+      {/* Modal picker de localização */}
+      {mapPickerOpen && (
+        <LocationPickerModal
+          initialValue={local}
+          onSelect={handleLocationSelect}
+          onClose={() => setMapPickerOpen(false)}
+        />
+      )}
 
       {filtrosOpen && (
         <div className="mt-2 bg-white/10 backdrop-blur-sm rounded-xl p-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
