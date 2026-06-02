@@ -28,7 +28,7 @@ export default async function ComprarDistritoPage({ params }: Props) {
   return (
     <>
       <Header />
-      <ListingResultsClient listingType="comprar" distrito={distrito} distritoLabel={label} />
+      <ListingResultsClient listingType="comprar" distrito={label} distritoLabel={label} />
     </>
   );
 }

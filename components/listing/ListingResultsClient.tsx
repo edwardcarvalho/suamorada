@@ -2,8 +2,10 @@
 
 import * as React from "react";
 import dynamic from "next/dynamic";
-import { Map, List, SlidersHorizontal, X } from "lucide-react";
+import { Map, List, SlidersHorizontal, MapPinOff } from "lucide-react";
 import { ListingCard, ListingCardSkeleton } from "@/components/listing/ListingCard";
+import { FiltersPanel, EMPTY_FILTERS, countActiveFilters, filtersToParams } from "@/components/listing/FiltersPanel";
+import type { FilterState } from "@/components/listing/FiltersPanel";
 import { usePropertySearch } from "@/hooks/usePropertySearch";
 import { cn } from "@/lib/utils";
 import type { PropertyType } from "@/types/property";
@@ -18,10 +20,10 @@ function MapSkeleton() {
 }
 
 const SORT_OPTIONS = [
-  { value: "newest",    label: "Mais recentes"  },
-  { value: "relevance", label: "Relevância"     },
-  { value: "price_asc", label: "Preço ↑"        },
-  { value: "price_desc","label": "Preço ↓"      },
+  { value: "newest",     label: "Mais recentes" },
+  { value: "relevance",  label: "Relevância"    },
+  { value: "price_asc",  label: "Preço ↑"       },
+  { value: "price_desc", label: "Preço ↓"       },
 ] as const;
 
 interface Props {
@@ -36,18 +38,35 @@ interface Props {
 export function ListingResultsClient({
   listingType, distrito, tipoImovel, distritoLabel, tipoLabel, initialSort = "newest",
 }: Props) {
-  const [sort, setSort]         = React.useState(initialSort);
-  const [page, setPage]         = React.useState(1);
-  const [activePin, setActivePin] = React.useState<string | null>(null);
-  const [mobileView, setMobileView] = React.useState<"list" | "map">("list");
+  const [sort, setSort]             = React.useState(initialSort);
+  const [page, setPage]             = React.useState(1);
+  const [activePin, setActivePin]   = React.useState<string | null>(null);
+  const [mobileView, setMobileView]   = React.useState<"list" | "map">("list");
+  const [mapVisible, setMapVisible]   = React.useState(true);
+  const [filtersOpen, setFiltersOpen] = React.useState(false);
+  const [filters, setFilters]       = React.useState<FilterState>(EMPTY_FILTERS);
+
+  // Quando os filtros mudam, volta à página 1
+  const handleFiltersChange = React.useCallback((f: FilterState) => {
+    setFilters(f);
+    setPage(1);
+  }, []);
+
+  // Monta o propertyType: URL param tem prioridade, depois o painel (1 tipo seleccionado)
+  const propertyType =
+    tipoImovel ||
+    (filters.propertyTypes.length === 1 ? filters.propertyTypes[0] : undefined);
+
+  const fp = filtersToParams(filters);
 
   const { results, total, totalPages, isLoading } = usePropertySearch({
     tipo:         listingType,
     distrito,
-    propertyType: tipoImovel as PropertyType | undefined,
+    propertyType: propertyType as PropertyType | undefined,
+    ...fp,
     page,
-    limit:        20,
-    sort:         sort as never,
+    limit: 20,
+    sort: sort as never,
   });
 
   const heading = distritoLabel
@@ -56,11 +75,33 @@ export function ListingResultsClient({
       : `Imóveis em ${distritoLabel}`
     : `Imóveis para ${listingType === "comprar" ? "Comprar" : "Arrendar"}`;
 
+  const activeFilterCount = countActiveFilters(filters);
+
   return (
     <div className="flex flex-col h-[calc(100vh-64px)]">
+
       {/* ── Barra de resultados ── */}
-      <div className="bg-white border-b border-border px-6 py-3 flex items-center justify-between gap-4 shrink-0">
+      <div className="bg-white border-b border-border px-4 py-3 flex items-center justify-between gap-4 shrink-0">
         <div className="flex items-center gap-3 min-w-0">
+          {/* Botão filtros (mobile) */}
+          <button
+            onClick={() => setFiltersOpen(true)}
+            className={cn(
+              "lg:hidden flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-sm font-sans font-medium transition-colors shrink-0",
+              activeFilterCount > 0
+                ? "border-navy bg-navy text-white"
+                : "border-border text-muted hover:border-navy hover:text-navy"
+            )}
+          >
+            <SlidersHorizontal size={14} />
+            Filtros
+            {activeFilterCount > 0 && (
+              <span className="bg-white text-navy text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center">
+                {activeFilterCount}
+              </span>
+            )}
+          </button>
+
           <h1 className="font-sans font-semibold text-sm text-ink truncate">
             {isLoading
               ? "A pesquisar..."
@@ -69,7 +110,6 @@ export function ListingResultsClient({
         </div>
 
         <div className="flex items-center gap-3 shrink-0">
-          {/* Sort */}
           <select
             value={sort}
             onChange={(e) => { setSort(e.target.value); setPage(1); }}
@@ -80,7 +120,22 @@ export function ListingResultsClient({
             ))}
           </select>
 
-          {/* Mobile toggle */}
+          {/* Toggle mapa (desktop) */}
+          <button
+            onClick={() => setMapVisible(!mapVisible)}
+            className={cn(
+              "hidden lg:flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-sm font-sans font-medium transition-colors",
+              mapVisible
+                ? "border-border text-muted hover:border-navy hover:text-navy"
+                : "border-navy bg-navy text-white"
+            )}
+            title={mapVisible ? "Ocultar mapa" : "Mostrar mapa"}
+          >
+            {mapVisible ? <MapPinOff size={14} /> : <Map size={14} />}
+            <span className="hidden xl:inline">{mapVisible ? "Ocultar mapa" : "Mostrar mapa"}</span>
+          </button>
+
+          {/* Toggle lista/mapa (mobile) */}
           <div className="flex lg:hidden border border-border rounded-lg overflow-hidden">
             <button
               onClick={() => setMobileView("list")}
@@ -103,10 +158,19 @@ export function ListingResultsClient({
       {/* ── Body ── */}
       <div className="flex flex-1 overflow-hidden">
 
-        {/* Lista */}
+        {/* ── Painel de filtros (desktop sidebar + mobile drawer) ── */}
+        <FiltersPanel
+          filters={filters}
+          onChange={handleFiltersChange}
+          listingType={listingType}
+          open={filtersOpen}
+          onClose={() => setFiltersOpen(false)}
+        />
+
+        {/* ── Lista de resultados ── */}
         <div className={cn(
           "overflow-y-auto bg-warm",
-          "lg:w-[42%] lg:block",
+          mapVisible ? "lg:w-[42%] lg:block" : "lg:flex-1 lg:block",
           mobileView === "list" ? "flex-1" : "hidden lg:block"
         )}>
           <div className="p-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2 gap-4">
@@ -117,8 +181,16 @@ export function ListingResultsClient({
                 <div className="col-span-full flex flex-col items-center justify-center py-24 gap-3 text-center">
                   <span className="text-4xl">🏠</span>
                   <p className="font-serif text-xl text-ink">Sem resultados</p>
-                  <p className="text-sm text-muted max-w-xs">
-                    Não encontrámos imóveis para os filtros seleccionados. Tente alargar a pesquisa.
+                  <p className="text-sm text-muted max-w-xs font-sans">
+                    Não encontrámos imóveis para os filtros seleccionados.{" "}
+                    {activeFilterCount > 0 && (
+                      <button
+                        onClick={() => handleFiltersChange(EMPTY_FILTERS)}
+                        className="text-brand underline"
+                      >
+                        Limpar filtros
+                      </button>
+                    )}
                   </p>
                 </div>
               )
@@ -137,7 +209,7 @@ export function ListingResultsClient({
 
           {/* Paginação */}
           {totalPages > 1 && !isLoading && (
-            <div className="flex justify-center gap-2 pb-6">
+            <div className="flex justify-center gap-2 pb-6 flex-wrap px-4">
               {Array.from({ length: Math.min(totalPages, 7) }).map((_, i) => (
                 <button
                   key={i}
@@ -156,19 +228,21 @@ export function ListingResultsClient({
           )}
         </div>
 
-        {/* Mapa */}
-        <div className={cn(
-          "lg:flex-1 lg:block",
-          mobileView === "map" ? "flex-1" : "hidden lg:block",
-          "p-3"
-        )}>
-          <PropertyMap
-            properties={results as never}
-            activePinId={activePin}
-            onPinClick={setActivePin}
-            className="w-full h-full"
-          />
-        </div>
+        {/* ── Mapa ── */}
+        {mapVisible && (
+          <div className={cn(
+            "lg:flex-1 lg:block",
+            mobileView === "map" ? "flex-1" : "hidden lg:block",
+            "p-3"
+          )}>
+            <PropertyMap
+              properties={results as never}
+              activePinId={activePin}
+              onPinClick={setActivePin}
+              className="w-full h-full"
+            />
+          </div>
+        )}
       </div>
     </div>
   );

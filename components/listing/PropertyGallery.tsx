@@ -3,106 +3,118 @@
 import * as React from "react";
 import Image from "next/image";
 import dynamic from "next/dynamic";
-import { Grid2x2, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, Camera } from "lucide-react";
 import type { PropertyImage } from "@/types/property";
 
-const Lightbox = dynamic(() => import("yet-another-react-lightbox"), { ssr: false });
+const GalleryModal = dynamic(
+  () => import("./GalleryModal").then((m) => m.GalleryModal),
+  { ssr: false }
+);
 
 interface Props {
   images: PropertyImage[];
   title: string;
+  price?: number;
+  listingType?: "sale" | "rent";
+  details?: string;
 }
 
-export function PropertyGallery({ images, title }: Props) {
-  const [lightboxOpen, setLightboxOpen] = React.useState(false);
-  const [lightboxIndex, setLightboxIndex] = React.useState(0);
+export function PropertyGallery({ images, title, price = 0, listingType = "sale", details }: Props) {
+  const [modalOpen, setModalOpen] = React.useState(false);
+  const [idx, setIdx]             = React.useState(0);
+  const total = images.length;
 
-  const cover = images.find((i) => i.isCover) ?? images[0];
-  const sides  = images.filter((i) => !i.isCover).slice(0, 2);
-  const total  = images.length;
+  function openAt(i: number) { setIdx(i); setModalOpen(true); }
+  const prev = (e: React.MouseEvent) => { e.stopPropagation(); setIdx((i) => (i - 1 + total) % total); };
+  const next = (e: React.MouseEvent) => { e.stopPropagation(); setIdx((i) => (i + 1) % total); };
 
-  const slides = images.map((img) => ({ src: img.url, alt: title }));
-
-  function openAt(idx: number) { setLightboxIndex(idx); setLightboxOpen(true); }
-
-  if (!images.length) {
+  if (!total) {
     return (
-      <div className="w-full aspect-[16/7] rounded-xl bg-warm-dark flex items-center justify-center">
+      <div className="w-full h-[420px] rounded-xl bg-warm-dark flex items-center justify-center">
         <span className="font-serif text-faint text-lg">Sem fotos disponíveis</span>
       </div>
     );
   }
 
+  const slides = images.map((img) => ({ url: img.url, alt: title }));
+  const current = images[idx];
+
   return (
     <>
-      {/* Mosaic layout */}
-      <div className="grid grid-cols-3 gap-2 h-[420px] rounded-xl overflow-hidden">
-        {/* Main photo */}
-        <div
-          className="col-span-2 relative cursor-pointer group"
-          onClick={() => openAt(0)}
-        >
-          <Image
-            src={cover.url}
-            alt={title}
-            fill
-            className="object-cover transition-transform duration-300 group-hover:scale-[1.02]"
-            priority
-            sizes="(max-width: 768px) 100vw, 65vw"
-          />
-          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors" />
-        </div>
+      {/* ── Galeria inline ── */}
+      <div
+        className="relative w-full h-[420px] rounded-xl overflow-hidden bg-warm-dark cursor-pointer group select-none"
+        onClick={() => openAt(idx)}
+      >
+        <Image
+          src={current.url}
+          alt={title}
+          fill
+          priority
+          className="object-cover transition-transform duration-300 group-hover:scale-[1.01]"
+          sizes="(max-width: 768px) 100vw, 80vw"
+        />
 
-        {/* Side photos */}
-        <div className="flex flex-col gap-2">
-          {sides.map((img, idx) => (
-            <div
-              key={img.id}
-              className="relative flex-1 cursor-pointer group overflow-hidden"
-              onClick={() => openAt(idx + 1)}
-            >
-              <Image
-                src={img.url}
-                alt={`${title} — foto ${idx + 2}`}
-                fill
-                className="object-cover transition-transform duration-300 group-hover:scale-[1.02]"
-                sizes="33vw"
+        {/* Gradientes para legibilidade dos botões */}
+        <div className="absolute inset-y-0 left-0 w-20 bg-gradient-to-r from-black/20 to-transparent" />
+        <div className="absolute inset-y-0 right-0 w-20 bg-gradient-to-l from-black/20 to-transparent" />
+
+        {/* Seta anterior */}
+        {total > 1 && (
+          <button
+            onClick={prev}
+            className="absolute left-3 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white/85 backdrop-blur-sm flex items-center justify-center shadow hover:bg-white transition-colors opacity-0 group-hover:opacity-100"
+            aria-label="Foto anterior"
+          >
+            <ChevronLeft size={20} className="text-ink" />
+          </button>
+        )}
+
+        {/* Seta seguinte */}
+        {total > 1 && (
+          <button
+            onClick={next}
+            className="absolute right-3 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white/85 backdrop-blur-sm flex items-center justify-center shadow hover:bg-white transition-colors opacity-0 group-hover:opacity-100"
+            aria-label="Próxima foto"
+          >
+            <ChevronRight size={20} className="text-ink" />
+          </button>
+        )}
+
+        {/* Badge contador inferior-direito */}
+        <button
+          onClick={(e) => { e.stopPropagation(); openAt(idx); }}
+          className="absolute bottom-3 right-3 flex items-center gap-1.5 bg-black/60 backdrop-blur-sm text-white text-xs font-sans font-semibold px-3 py-1.5 rounded-full hover:bg-black/80 transition-colors"
+        >
+          <Camera size={13} />
+          {idx + 1} / {total}
+        </button>
+
+        {/* Dots indicadores (máx. 8) */}
+        {total > 1 && total <= 12 && (
+          <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5">
+            {images.map((_, i) => (
+              <button
+                key={i}
+                onClick={(e) => { e.stopPropagation(); setIdx(i); }}
+                className={`w-1.5 h-1.5 rounded-full transition-all ${i === idx ? "bg-white scale-125" : "bg-white/50"}`}
+                aria-label={`Foto ${i + 1}`}
               />
-              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors" />
-              {/* Overlay "ver todas" na última foto */}
-              {idx === 1 && total > 3 && (
-                <div
-                  className="absolute inset-0 bg-black/50 flex flex-col items-center justify-center gap-1 cursor-pointer"
-                  onClick={() => openAt(0)}
-                >
-                  <Grid2x2 size={22} className="text-white" />
-                  <span className="text-white text-sm font-sans font-semibold">
-                    Ver todas as {total} fotos
-                  </span>
-                </div>
-              )}
-            </div>
-          ))}
-          {/* Botão ver todas se só 1 foto lateral */}
-          {sides.length < 2 && total > 0 && (
-            <button
-              onClick={() => openAt(0)}
-              className="flex-1 flex flex-col items-center justify-center gap-2 bg-warm-dark hover:bg-warm border border-border rounded-lg transition-colors"
-            >
-              <Grid2x2 size={20} className="text-muted" />
-              <span className="text-xs font-sans text-muted">Ver todas</span>
-            </button>
-          )}
-        </div>
+            ))}
+          </div>
+        )}
       </div>
 
-      {/* Lightbox */}
-      {lightboxOpen && (
-        <Lightbox
-          open={lightboxOpen}
-          close={() => setLightboxOpen(false)}
-          index={lightboxIndex}
+      {/* ── Modal fullscreen (Idealista-style) ── */}
+      {modalOpen && (
+        <GalleryModal
           slides={slides}
+          initialIndex={idx}
+          title={title}
+          price={price}
+          listingType={listingType}
+          details={details}
+          onClose={() => setModalOpen(false)}
         />
       )}
     </>

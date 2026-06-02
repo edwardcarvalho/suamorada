@@ -106,12 +106,16 @@ export interface PropertySearchParams {
   maxPrice?: number;
   minArea?: number;
   maxArea?: number;
-  quartos?: number;
+  quartos?: string;             // vírgula-separado: "0,1,2" (4 = T4+, ≥4)
+  casasBanho?: number;          // mínimo de casas de banho
+  energia?: string;             // vírgula-separado: "A+,A,B"
+  estado?: string;              // vírgula-separado: "new,used"
+  extras?: string;              // vírgula-separado: "garage,elevator,pool,garden,ac,balcony,wardrobe,storage"
+  andar?: string;               // "ultimo" | "intermedio" | "res_chao"
+  publicado?: string;           // "48h" | "semana" | "mes"
   lat?: number;
   lng?: number;
   radiusKm?: number;
-  features?: string[];
-  energy?: string[];
   page?: number;
   limit?: number;
   sort?: "price_asc" | "price_desc" | "newest" | "relevance";

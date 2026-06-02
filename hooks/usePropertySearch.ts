@@ -10,28 +10,34 @@ const fetcher = (url: string) =>
   });
 
 export function usePropertySearch(params: PropertySearchParams) {
-  const query = new URLSearchParams();
+  const q = new URLSearchParams();
 
-  if (params.tipo)         query.set("tipo",          params.tipo);
-  if (params.propertyType) query.set("propertyType",  params.propertyType);
-  if (params.distrito)     query.set("distrito",      params.distrito);
-  if (params.municipio)    query.set("municipio",     params.municipio);
-  if (params.minPrice)     query.set("minPrice",      String(params.minPrice));
-  if (params.maxPrice)     query.set("maxPrice",      String(params.maxPrice));
-  if (params.minArea)      query.set("minArea",       String(params.minArea));
-  if (params.maxArea)      query.set("maxArea",       String(params.maxArea));
-  if (params.quartos !== undefined) query.set("quartos", String(params.quartos));
-  if (params.lat)          query.set("lat",           String(params.lat));
-  if (params.lng)          query.set("lng",           String(params.lng));
-  if (params.page)         query.set("page",          String(params.page));
-  if (params.limit)        query.set("limit",         String(params.limit));
-  if (params.sort)         query.set("sort",          params.sort);
+  if (params.tipo)          q.set("tipo",         params.tipo);
+  if (params.propertyType)  q.set("propertyType", params.propertyType);
+  if (params.distrito)      q.set("distrito",     params.distrito);
+  if (params.municipio)     q.set("municipio",    params.municipio);
+  if (params.minPrice)      q.set("minPrice",     String(params.minPrice));
+  if (params.maxPrice)      q.set("maxPrice",     String(params.maxPrice));
+  if (params.minArea)       q.set("minArea",      String(params.minArea));
+  if (params.maxArea)       q.set("maxArea",      String(params.maxArea));
+  if (params.quartos)       q.set("quartos",      params.quartos);
+  if (params.casasBanho)    q.set("casasBanho",   String(params.casasBanho));
+  if (params.energia)       q.set("energia",      params.energia);
+  if (params.estado)        q.set("estado",       params.estado);
+  if (params.extras)        q.set("extras",       params.extras);
+  if (params.andar)         q.set("andar",        params.andar);
+  if (params.publicado)     q.set("publicado",    params.publicado);
+  if (params.lat)           q.set("lat",          String(params.lat));
+  if (params.lng)           q.set("lng",          String(params.lng));
+  if (params.page)          q.set("page",         String(params.page));
+  if (params.limit)         q.set("limit",        String(params.limit));
+  if (params.sort)          q.set("sort",         params.sort);
 
-  const url = `/api/properties/search?${query.toString()}`;
+  const url = `/api/properties/search?${q.toString()}`;
 
   const { data, error, isLoading, mutate } = useSWR<PropertySearchResult>(url, fetcher, {
     revalidateOnFocus: false,
-    keepPreviousData: true,
+    keepPreviousData:  true,
   });
 
   return {
@@ -39,7 +45,6 @@ export function usePropertySearch(params: PropertySearchParams) {
     total:      data?.total ?? 0,
     totalPages: data?.totalPages ?? 0,
     page:       data?.page ?? 1,
-    bounds:     data?.bounds,
     isLoading,
     isError:    !!error,
     refresh:    mutate,

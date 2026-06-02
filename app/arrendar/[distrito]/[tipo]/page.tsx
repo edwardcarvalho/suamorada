@@ -37,7 +37,7 @@ export default async function ArendarDistritoTipoPage({ params }: Props) {
       <Header />
       <ListingResultsClient
         listingType="arrendar"
-        distrito={distrito}
+        distrito={label}
         tipoImovel={PROPERTY_TYPE_SLUGS[tipo]}
         distritoLabel={label}
         tipoLabel={tipoLabel}

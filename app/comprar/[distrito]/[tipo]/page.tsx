@@ -33,16 +33,17 @@ export default async function ComprarDistritoTipoPage({ params, searchParams }: 
   const sp = await searchParams;
   if (!DISTRICT_SLUGS[distrito] || !PROPERTY_TYPE_SLUGS[tipo]) notFound();
 
-  const distritoLabel = DISTRICT_SLUGS[distrito];
-  const tipoLabel     = PROPERTY_TYPE_LABELS[PROPERTY_TYPE_SLUGS[tipo]];
+  const distritoLabel  = DISTRICT_SLUGS[distrito];
+  const propertyType   = PROPERTY_TYPE_SLUGS[tipo];           // "apartment"
+  const tipoLabel      = PROPERTY_TYPE_LABELS[propertyType];  // "Apartamento"
 
   return (
     <div className="flex flex-col min-h-screen">
       <Header />
       <ListingResultsClient
         listingType="comprar"
-        distrito={distrito}
-        tipoImovel={tipo}
+        distrito={distritoLabel}
+        tipoImovel={propertyType}
         distritoLabel={distritoLabel}
         tipoLabel={tipoLabel}
         initialSort={(sp.sort as string) ?? "newest"}

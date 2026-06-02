@@ -1,6 +1,6 @@
 import { db } from "@/lib/db";
-import { properties, propertyImages } from "@/lib/db/schema";
-import { eq, and, gte, lte, sql, desc, asc, inArray } from "drizzle-orm";
+import { properties, propertyImages, users, agencies } from "@/lib/db/schema";
+import { eq, and, gte, lte, sql, desc, asc } from "drizzle-orm";
 import type { PropertySearchParams } from "@/types/property";
 
 /** Busca imóveis com filtros dinâmicos */
@@ -23,7 +23,11 @@ export async function searchProperties(params: PropertySearchParams) {
   if (maxPrice) conditions.push(lte(properties.price, maxPrice * 100));
   if (minArea) conditions.push(gte(properties.areaUseful, minArea));
   if (maxArea) conditions.push(lte(properties.areaUseful, maxArea));
-  if (quartos !== undefined) conditions.push(eq(properties.bedrooms, quartos));
+  // quartos é agora string ("0,1,2,4") — na listagem só usamos o primeiro valor
+  if (quartos !== undefined) {
+    const val = Number(String(quartos).split(",")[0]);
+    if (!isNaN(val)) conditions.push(eq(properties.bedrooms, val));
+  }
 
   const orderBy = {
     price_asc:  asc(properties.price),
@@ -58,23 +62,46 @@ export async function searchProperties(params: PropertySearchParams) {
   };
 }
 
-/** Busca imóvel por slug com imagens */
+/** Busca imóvel por slug com imagens, anunciante e agência */
 export async function getPropertyBySlug(slug: string) {
-  const [property] = await db
-    .select()
+  const [row] = await db
+    .select({
+      property: properties,
+      user: {
+        id: users.id,
+        name: users.name,
+        email: users.email,
+        phone: users.phone,
+        avatarUrl: users.avatarUrl,
+      },
+      agency: {
+        id: agencies.id,
+        name: agencies.name,
+        slug: agencies.slug,
+        verified: agencies.verified,
+      },
+    })
     .from(properties)
+    .leftJoin(users, eq(properties.userId, users.id))
+    .leftJoin(agencies, eq(properties.agencyId, agencies.id))
     .where(and(eq(properties.slug, slug), eq(properties.status, "active")))
     .limit(1);
 
-  if (!property) return null;
+  if (!row) return null;
 
   const images = await db
     .select()
     .from(propertyImages)
-    .where(eq(propertyImages.propertyId, property.id))
+    .where(eq(propertyImages.propertyId, row.property.id))
     .orderBy(asc(propertyImages.position));
 
-  return { ...property, images };
+  return {
+    ...row.property,
+    images,
+    agent: row.user
+      ? { ...row.user, agency: row.agency?.id ? row.agency : undefined }
+      : undefined,
+  };
 }
 
 /** Incrementa contagem de views */

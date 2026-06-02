@@ -28,7 +28,7 @@ export default async function ArendarDistritoPage({ params }: Props) {
   return (
     <div className="flex flex-col min-h-screen">
       <Header />
-      <ListingResultsClient listingType="arrendar" distrito={distrito} distritoLabel={label} />
+      <ListingResultsClient listingType="arrendar" distrito={label} distritoLabel={label} />
     </div>
   );
 }

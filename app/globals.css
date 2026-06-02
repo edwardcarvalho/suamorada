@@ -54,3 +54,31 @@ body {
   background-color: rgba(232, 101, 26, 0.15);
   color: var(--color-ink);
 }
+
+
+/* ── Animação drawer mobile ── */
+@keyframes slide-in-left {
+  from { transform: translateX(-100%); }
+  to   { transform: translateX(0);     }
+}
+.animate-slide-in-left {
+  animation: slide-in-left 0.22s cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+/* ── Leaflet — override estilos padrão ── */
+.leaflet-popup-content-wrapper {
+  padding: 0 !important;
+  border-radius: 8px !important;
+  box-shadow: none !important;
+  overflow: hidden;
+}
+.leaflet-popup-content {
+  margin: 0 !important;
+  line-height: 1 !important;
+}
+.leaflet-popup-tip-container {
+  display: none;   /* usa o triângulo do pin, não o do popup */
+}
+.leaflet-popup-property .leaflet-popup-content-wrapper {
+  border: none !important;
+}
