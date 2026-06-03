@@ -261,6 +261,14 @@ export function LocationPickerModal({ onSelect, onClose, initialValue = "" }: Pr
   }, [query]);
 
   /* ── Selecção ── */
+  function toggleLocation(loc: LocationResult) {
+    setSelected(prev =>
+      prev.some(s => s.label === loc.label && s.level === loc.level)
+        ? prev.filter(s => !(s.label === loc.label && s.level === loc.level))
+        : [...prev, loc]
+    );
+    setQuery(""); setSuggestions([]);
+  }
   function addLocation(loc: LocationResult) {
     setSelected(prev => prev.some(s => s.label === loc.label) ? prev : [...prev, loc]);
     setQuery(""); setSuggestions([]);
@@ -271,7 +279,8 @@ export function LocationPickerModal({ onSelect, onClose, initialValue = "" }: Pr
 
   /* ── Drill: clique num distrito ── */
   function drillDistrict(name: string, bounds: L.LatLngBounds) {
-    districtBoundsCache.current[name] = bounds;         // guarda bounds para voltar atrás
+    districtBoundsCache.current[name] = bounds;
+    toggleLocation({ label: name, level: "district" });
     setDrill({ level: "municipality", district: name, municipality: null });
     setFlyBounds(bounds);
   }
@@ -413,7 +422,7 @@ export function LocationPickerModal({ onSelect, onClose, initialValue = "" }: Pr
         {/* Breadcrumb */}
         <nav className="flex items-center gap-1 text-sm font-sans">
           {breadcrumb.map((b, i) => (
-            <React.Fragment key={b.label}>
+            <React.Fragment key={`${i}-${b.label}`}>
               {i > 0 && <ChevronRight size={13} className="text-faint" />}
               <button
                 onClick={() => i < breadcrumb.length - 1 ? goToLevel(b.level) : undefined}
@@ -435,7 +444,7 @@ export function LocationPickerModal({ onSelect, onClose, initialValue = "" }: Pr
         {selected.length > 0 && (
           <div className="flex items-center gap-1.5 flex-wrap">
             {selected.map((loc, i) => (
-              <span key={loc.label}
+              <span key={`${loc.level}-${loc.label}`}
                 className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-sans font-semibold text-white"
                 style={{ background: PIN_COLORS[i % PIN_COLORS.length] }}
               >
@@ -489,7 +498,7 @@ export function LocationPickerModal({ onSelect, onClose, initialValue = "" }: Pr
               tooltipLabel="Clique para ver freguesias"
               showLabels={true}
               onClick={(name, bounds, center) => {
-                addLocation({ label: name, level: "municipality", lat: center.lat, lng: center.lng });
+                toggleLocation({ label: name, level: "municipality", lat: center.lat, lng: center.lng });
                 drillMunicipality(name, bounds);
               }}
             />
@@ -503,7 +512,9 @@ export function LocationPickerModal({ onSelect, onClose, initialValue = "" }: Pr
               selectedLabels={selected.filter(s => s.level === "parish").map(s => s.label)}
               tooltipLabel="Clique para seleccionar"
               showLabels={true}
-              onClick={(name, _bounds, center) => selectParish(name, center)}
+              onClick={(name, _bounds, center) => {
+                toggleLocation({ label: name, level: "parish", lat: center.lat, lng: center.lng });
+              }}
             />
           )}
 

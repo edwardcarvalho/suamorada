@@ -3,6 +3,7 @@
 import * as React from "react";
 import dynamic from "next/dynamic";
 import { Map, List, SlidersHorizontal, MapPinOff, PenLine, X } from "lucide-react";
+import { useSearchParams } from "next/navigation";
 import type { BBox } from "@/components/search/ZonePickerModal";
 import { ListingCard, ListingCardSkeleton } from "@/components/listing/ListingCard";
 import { FiltersPanel, EMPTY_FILTERS, countActiveFilters, filtersToParams } from "@/components/listing/FiltersPanel";
@@ -44,6 +45,20 @@ interface Props {
 export function ListingResultsClient({
   listingType, distrito, tipoImovel, distritoLabel, tipoLabel, initialSort = "newest",
 }: Props) {
+  const searchParams = useSearchParams();
+
+  // Lê parâmetros da URL (têm prioridade sobre props)
+  const urlDistrito   = searchParams.get("distrito")   ?? undefined;
+  const urlMunicipio  = searchParams.get("municipio")  ?? undefined;
+  const urlMinLat     = searchParams.get("minLat")     ? Number(searchParams.get("minLat"))  : undefined;
+  const urlMaxLat     = searchParams.get("maxLat")     ? Number(searchParams.get("maxLat"))  : undefined;
+  const urlMinLng     = searchParams.get("minLng")     ? Number(searchParams.get("minLng"))  : undefined;
+  const urlMaxLng     = searchParams.get("maxLng")     ? Number(searchParams.get("maxLng"))  : undefined;
+  const urlMinPrice   = searchParams.get("minPrice")   ? Number(searchParams.get("minPrice")): undefined;
+  const urlMaxPrice   = searchParams.get("maxPrice")   ? Number(searchParams.get("maxPrice")): undefined;
+  const urlQuartos    = searchParams.get("quartos")    ?? undefined;
+  const urlPropType   = searchParams.get("propertyType") ?? undefined;
+
   const [sort, setSort]             = React.useState(initialSort);
   const [page, setPage]             = React.useState(1);
   const [activePin, setActivePin]   = React.useState<string | null>(null);
@@ -67,14 +82,28 @@ export function ListingResultsClient({
 
   const fp = filtersToParams(filters);
 
+  // Merge: URL params > props > filtros do painel
+  const effectiveDistrito  = urlDistrito  ?? distrito;
+  const effectiveMunicipio = urlMunicipio;
+  const effectivePropType  = (urlPropType ?? propertyType) as PropertyType | undefined;
+  const effectiveMinPrice  = urlMinPrice  ?? fp.minPrice;
+  const effectiveMaxPrice  = urlMaxPrice  ?? fp.maxPrice;
+  const effectiveQuartos   = urlQuartos   ?? fp.quartos;
+  const effectiveBBox      = activeBBox
+    ?? (urlMinLat ? { minLat: urlMinLat, maxLat: urlMaxLat!, minLng: urlMinLng!, maxLng: urlMaxLng! } : undefined);
+
   const { results, total, totalPages, isLoading } = usePropertySearch({
     tipo:         listingType,
-    distrito,
-    propertyType: propertyType as PropertyType | undefined,
+    distrito:     effectiveDistrito,
+    municipio:    effectiveMunicipio,
+    propertyType: effectivePropType,
     ...fp,
-    ...(activeBBox ? {
-      minLat: activeBBox.minLat, maxLat: activeBBox.maxLat,
-      minLng: activeBBox.minLng, maxLng: activeBBox.maxLng,
+    minPrice:     effectiveMinPrice,
+    maxPrice:     effectiveMaxPrice,
+    quartos:      effectiveQuartos,
+    ...(effectiveBBox ? {
+      minLat: effectiveBBox.minLat, maxLat: effectiveBBox.maxLat,
+      minLng: effectiveBBox.minLng, maxLng: effectiveBBox.maxLng,
     } : {}),
     page,
     limit: 20,

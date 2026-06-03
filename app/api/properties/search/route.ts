@@ -53,7 +53,11 @@ export async function GET(req: NextRequest) {
     if (vals.length === 1) conditions.push(eq(properties.addressDistrict, vals[0]));
     else if (vals.length > 1) conditions.push(inArray(properties.addressDistrict, vals));
   }
-  if (p.municipio)           conditions.push(eq(properties.addressMunicipality, p.municipio));
+  if (p.municipio) {
+    const vals = p.municipio.split(",").map((s: string) => s.trim()).filter(Boolean);
+    if (vals.length === 1) conditions.push(eq(properties.addressMunicipality, vals[0]));
+    else if (vals.length > 1) conditions.push(inArray(properties.addressMunicipality, vals));
+  }
   if (p.minPrice)            conditions.push(gte(properties.price, p.minPrice * 100));
   if (p.maxPrice)            conditions.push(lte(properties.price, p.maxPrice * 100));
   if (p.minArea)             conditions.push(gte(properties.areaUseful, p.minArea));

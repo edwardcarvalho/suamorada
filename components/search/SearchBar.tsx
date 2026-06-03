@@ -183,56 +183,79 @@ export function SearchBar({
     const tipoPath = tipo === "Comprar" ? "comprar" : "arrendar";
     const params   = new URLSearchParams();
 
-    if (tiposImovel.length)  params.set("tipos",   tiposImovel.join(","));
-    if (quartos.length)      params.set("quartos", quartos.join(","));
-    if (minPreco)            params.set("min_preco", minPreco);
-    if (maxPreco)            params.set("max_preco", maxPreco);
+    // ── Filtros de preço e tipo ─────────────────────────────────────────
+    if (tiposImovel.length) params.set("propertyType", tiposImovel[0]); // 1º tipo para o path
+    if (quartos.length)     params.set("quartos",      quartos.join(","));
+    if (minPreco)           params.set("minPrice",     minPreco);
+    if (maxPreco)           params.set("maxPrice",     maxPreco);
 
-    const localSlug = local
-      .toLowerCase()
-      .normalize("NFD").replace(/[̀-ͯ]/g, "")
-      .replace(/\s+/g, "-").replace(/[^\w-]/g, "");
+    // ── Localização via map picker (tem prioridade) ────────────────────
+    if (activeLocations.length > 0 || activeBBox) {
+      const districts = activeLocations.filter(l => l.level === "district");
+      const munis     = activeLocations.filter(l => l.level === "municipality");
+      const parishes  = activeLocations.filter(l => l.level === "parish");
 
-    // Slug do tipo (1º tipo seleccionado para a URL)
-    const tipoSlug = tiposImovel.length === 1
-      ? TIPOS_IMOVEL.find((t) => t.value === tiposImovel[0])?.label
-          .toLowerCase().replace(/\s+/g, "-") ?? ""
+      if (districts.length)  params.set("distrito",  districts.map(l => l.label).join(","));
+      if (munis.length)      params.set("municipio", munis.map(l => l.label).join(","));
+      if (parishes.length)   params.set("freguesia", parishes.map(l => l.label).join(","));
+
+      if (activeBBox) {
+        params.set("minLat", String(activeBBox.minLat));
+        params.set("maxLat", String(activeBBox.maxLat));
+        params.set("minLng", String(activeBBox.minLng));
+        params.set("maxLng", String(activeBBox.maxLng));
+      }
+
+      // Vai sempre para a página base com query params
+      router.push(`/${tipoPath}?${params.toString()}`);
+      return;
+    }
+
+    // ── Localização por texto (slug-based routing) ────────────────────
+    const slug = (s: string) =>
+      s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "")
+       .replace(/\s+/g, "-").replace(/[^\w-]/g, "");
+
+    const localSlug = local ? slug(local) : "";
+    const tipoSlug  = tiposImovel.length === 1
+      ? slug(TIPOS_IMOVEL.find(t => t.value === tiposImovel[0])?.label ?? "")
       : "";
 
     let path = `/${tipoPath}`;
     if (localSlug) path += `/${localSlug}`;
     if (tipoSlug && localSlug) path += `/${tipoSlug}`;
 
-    if (activeBBox) {
-      params.set("minLat", String(activeBBox.minLat));
-      params.set("maxLat", String(activeBBox.maxLat));
-      params.set("minLng", String(activeBBox.minLng));
-      params.set("maxLng", String(activeBBox.maxLng));
-    }
-    // Filtra por nível (distrito / município / freguesia)
-    const districts   = activeLocations.filter(l => l.level === "district");
-    const munis       = activeLocations.filter(l => l.level === "municipality");
-    const parishes    = activeLocations.filter(l => l.level === "parish");
-    if (districts.length)  params.set("distrito",  districts.map(l => l.label).join(","));
-    if (munis.length)      params.set("municipio", munis.map(l => l.label).join(","));
-    if (parishes.length)   params.set("freguesia", parishes.map(l => l.label).join(","));
+    // Remove propertyType do params (já está na URL)
+    params.delete("propertyType");
 
     const qs = params.toString();
     router.push(qs ? `${path}?${qs}` : path);
   }
 
   function handleLocationSelect(sel: LocationSelection) {
-    setActiveLocations(sel.locations);
-    setActiveBBox(sel.drawBBox ?? null);
-    // Label display: nomes das zonas ou "Zona personalizada"
-    if (sel.drawBBox && sel.locations.length === 0) {
-      setLocal("Zona personalizada");
-    } else if (sel.locations.length === 1) {
-      setLocal(sel.locations[0].label);
-    } else if (sel.locations.length > 1) {
-      setLocal(`${sel.locations.length} zonas seleccionadas`);
-    }
     setMapPickerOpen(false);
+
+    const tipoPath = tipo === "Comprar" ? "comprar" : "arrendar";
+    const params   = new URLSearchParams();
+
+    // Localização por nível
+    const districts = sel.locations.filter(l => l.level === "district");
+    const munis     = sel.locations.filter(l => l.level === "municipality");
+    const parishes  = sel.locations.filter(l => l.level === "parish");
+
+    if (districts.length)  params.set("distrito",  districts.map(l => l.label).join(","));
+    if (munis.length)      params.set("municipio", munis.map(l => l.label).join(","));
+    if (parishes.length)   params.set("freguesia", parishes.map(l => l.label).join(","));
+
+    if (sel.drawBBox) {
+      params.set("minLat", String(sel.drawBBox.minLat));
+      params.set("maxLat", String(sel.drawBBox.maxLat));
+      params.set("minLng", String(sel.drawBBox.minLng));
+      params.set("maxLng", String(sel.drawBBox.maxLng));
+    }
+
+    // Navega directamente para os resultados
+    router.push(`/${tipoPath}?${params.toString()}`);
   }
 
   // ── Compact (navbar) ────────────────────────────────────────────────────────
