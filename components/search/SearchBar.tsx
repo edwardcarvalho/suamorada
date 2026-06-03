@@ -420,18 +420,6 @@ export function SearchBar({
         </div>
       </div>
 
-      {/* Filtros avançados */}
-      <div className="mt-2 flex justify-center">
-        <button
-          onClick={() => setFiltrosOpen(!filtrosOpen)}
-          className="flex items-center gap-1.5 text-xs text-white/60 hover:text-white transition-colors font-sans"
-        >
-          <SlidersHorizontal size={13} />
-          {filtrosOpen ? "Menos filtros" : "Filtros avançados"}
-          <ChevronDown size={12} className={cn("transition-transform", filtrosOpen && "rotate-180")} />
-        </button>
-      </div>
-
       {/* Modal picker de localização */}
       {mapPickerOpen && (
         <LocationPickerModal
@@ -439,28 +427,6 @@ export function SearchBar({
           onSelect={handleLocationSelect}
           onClose={() => setMapPickerOpen(false)}
         />
-      )}
-
-      {filtrosOpen && (
-        <div className="mt-2 bg-white/10 backdrop-blur-sm rounded-xl p-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
-          {[
-            { label: "Preço mínimo (€)", key: "min", val: minPreco, set: setMinPreco, ph: "0"            },
-            { label: "Preço máximo (€)", key: "max", val: maxPreco, set: setMaxPreco, ph: "Sem limite"   },
-          ].map((f) => (
-            <div key={f.key} className="flex flex-col gap-1">
-              <label className="text-[10px] font-sans font-semibold uppercase tracking-wider text-white/60">
-                {f.label}
-              </label>
-              <input
-                type="number"
-                value={f.val}
-                onChange={(e) => f.set(e.target.value)}
-                placeholder={f.ph}
-                className="bg-white/10 text-white placeholder:text-white/30 rounded-lg px-3 py-2 text-sm outline-none border border-white/10 focus:border-brand"
-              />
-            </div>
-          ))}
-        </div>
       )}
     </div>
   );

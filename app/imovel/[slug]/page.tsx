@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/Badge";
 import { AdUnit } from "@/components/ads/AdUnit";
 import { PropertyGallery } from "@/components/listing/PropertyGallery";
 import { ContactSidebar } from "@/components/listing/ContactSidebar";
+import { PropertyLocationMap } from "@/components/listing/PropertyLocationMapWrapper";
 import { formatPrice, bedroomsLabel, timeAgo } from "@/lib/utils";
 import { CONDITION_LABELS, LISTING_TYPE_LABELS } from "@/types/property";
 import {
@@ -237,20 +238,14 @@ export default async function ImovelPage({ params }: Props) {
                 className="mb-6 hidden md:block"
               />
 
-              {/* Map placeholder */}
+              {/* Mapa de localização */}
               <section aria-label="Localização no mapa" className="mb-6">
                 <h2 className="font-sans font-semibold text-base text-ink mb-3">Localização</h2>
-                <div className="bg-warm-dark rounded-xl h-60 flex items-center justify-center border border-border">
-                  <div className="text-center">
-                    <MapPin size={28} className="text-faint mx-auto mb-2" />
-                    <p className="text-sm text-muted font-sans">
-                      {p.addressParish ? `${p.addressParish}, ` : ""}{p.addressMunicipality}
-                    </p>
-                    <p className="text-xs text-faint font-sans mt-1">
-                      Localização aproximada por privacidade
-                    </p>
-                  </div>
-                </div>
+                <PropertyLocationMap
+                  lat={p.lat}
+                  lng={p.lng}
+                  label={[p.addressParish, p.addressMunicipality].filter(Boolean).join(", ")}
+                />
               </section>
 
               {/* ── AD 4: após mapa ── */}

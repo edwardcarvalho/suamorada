@@ -65,7 +65,7 @@ export function Step3Details() {
       : [...data.features, f]
     );
 
-  const canContinue = data.title.length >= 10 && data.description.length >= 50 && Number(data.price) > 0;
+  const canContinue = data.title.length >= 10 && data.description.length >= 50 && Number(data.price.replace(/\./g, "").replace(",", ".")) > 0;
 
   return (
     <div className="space-y-6">
@@ -117,9 +117,14 @@ export function Step3Details() {
             Preço (€) {data.listingType === "rent" ? "/ mês" : ""}
           </label>
           <input
-            type="number"
+            type="text"
+            inputMode="numeric"
             value={data.price}
-            onChange={(e) => setField("price", e.target.value)}
+            onChange={(e) => {
+              // Permite dígitos, pontos e vírgulas (separadores de milhares PT)
+              const raw = e.target.value.replace(/[^\d.,]/g, "");
+              setField("price", raw);
+            }}
             placeholder={data.listingType === "rent" ? "1.200" : "250.000"}
             className="w-full rounded-lg border border-border px-4 py-3 text-sm font-sans text-ink outline-none focus:border-navy transition-colors"
             style={{ fontSize: "1rem" }}

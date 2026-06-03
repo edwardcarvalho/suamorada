@@ -3,6 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
+import { signIn } from "next-auth/react";
 import { Mail, Home } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -19,19 +20,19 @@ function EntrarContent() {
     e.preventDefault();
     if (!email) return;
     setLoading(true);
-    // NextAuth signIn via fetch
-    const res = await fetch("/api/auth/signin/resend", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, callbackUrl: cb }),
-    });
-    setLoading(false);
-    if (res.ok) { setSent(true); }
-    else { toast.error("Erro ao enviar email. Tente novamente."); }
+    try {
+      const res = await signIn("resend", { email, callbackUrl: cb, redirect: false });
+      if (res?.error) { toast.error("Erro ao enviar email. Tente novamente."); }
+      else { setSent(true); }
+    } catch {
+      toast.error("Erro ao enviar email. Tente novamente.");
+    } finally {
+      setLoading(false);
+    }
   }
 
   async function handleGoogle() {
-    window.location.href = `/api/auth/signin/google?callbackUrl=${encodeURIComponent(cb)}`;
+    await signIn("google", { callbackUrl: cb });
   }
 
   return (

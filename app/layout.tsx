@@ -4,6 +4,7 @@ import { Gloock } from "next/font/google";
 import Script from "next/script";
 import { Toaster } from "react-hot-toast";
 import { SWRProvider } from "@/components/providers/SWRProvider";
+import { AuthProvider } from "@/components/providers/AuthProvider";
 import "./globals.css";
 
 const inter = Inter({
@@ -81,9 +82,11 @@ export default function RootLayout({
       className={`${inter.variable} ${gloock.variable} h-full`}
     >
       <body className="min-h-full flex flex-col bg-warm text-ink antialiased">
-        <SWRProvider>
-        {children}
-        </SWRProvider>
+        <AuthProvider>
+          <SWRProvider>
+            {children}
+          </SWRProvider>
+        </AuthProvider>
         <Toaster
           position="bottom-right"
           toastOptions={{

@@ -3,9 +3,17 @@ import Google from "next-auth/providers/google";
 import Resend from "next-auth/providers/resend";
 import { DrizzleAdapter } from "@auth/drizzle-adapter";
 import { db } from "@/lib/db";
+import {
+  users, accounts, sessions, verificationTokens,
+} from "@/lib/db/schema";
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
-  adapter: DrizzleAdapter(db),
+  adapter: DrizzleAdapter(db, {
+    usersTable:              users,
+    accountsTable:           accounts,
+    sessionsTable:           sessions,
+    verificationTokensTable: verificationTokens,
+  }),
   providers: [
     Google({
       clientId:     process.env.GOOGLE_CLIENT_ID,
@@ -18,19 +26,22 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   ],
   session: { strategy: "jwt", maxAge: 30 * 24 * 60 * 60 },
   pages: {
-    signIn:  "/entrar",
-    signOut: "/",
-    error:   "/entrar",
+    signIn:        "/entrar",
+    signOut:       "/",
+    error:         "/entrar",
     verifyRequest: "/entrar/verificar",
   },
   callbacks: {
     jwt({ token, user }) {
-      if (user) { token.id = user.id; token.role = (user as never as { role: string }).role ?? "buyer"; }
+      if (user) {
+        token.id   = user.id;
+        token.role = (user as never as { role: string }).role ?? "buyer";
+      }
       return token;
     },
     session({ session, token }) {
       if (session.user) {
-        session.user.id   = token.id as string;
+        session.user.id = token.id as string;
         (session.user as never as { role: string }).role = token.role as string;
       }
       return session;

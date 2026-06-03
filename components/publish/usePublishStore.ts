@@ -52,9 +52,11 @@ export interface PublishFormData {
 interface PublishStore {
   step:      number;
   data:      PublishFormData;
+  editId:    string | null;   // ID do imóvel em edição (null = novo)
   setStep:   (s: number) => void;
   setField:  <K extends keyof PublishFormData>(key: K, val: PublishFormData[K]) => void;
   setData:   (partial: Partial<PublishFormData>) => void;
+  setEditId: (id: string | null) => void;
   addImage:  (img: UploadedImage) => void;
   updateImage: (id: string, partial: Partial<UploadedImage>) => void;
   removeImage: (id: string) => void;
@@ -79,9 +81,11 @@ const INITIAL: PublishFormData = {
 export const usePublishStore = create<PublishStore>()(
   persist(
     (set) => ({
-      step: 1,
-      data: INITIAL,
-      setStep:  (step) => set({ step }),
+      step:   1,
+      data:   INITIAL,
+      editId: null,
+      setStep:   (step)   => set({ step }),
+      setEditId: (editId) => set({ editId }),
       setField: (key, val) => set((s) => ({ data: { ...s.data, [key]: val } })),
       setData:  (partial) => set((s) => ({ data: { ...s.data, ...partial } })),
       addImage: (img) => set((s) => ({ data: { ...s.data, images: [...s.data.images, img] } })),
@@ -99,7 +103,7 @@ export const usePublishStore = create<PublishStore>()(
       reorderImages: (images) => set((s) => ({
         data: { ...s.data, images: images.map((i, idx) => ({ ...i, position: idx, isCover: idx === 0 })) }
       })),
-      reset: () => set({ step: 1, data: INITIAL }),
+      reset: () => set({ step: 1, data: INITIAL, editId: null }),
     }),
     {
       name: "suamorada-publish",

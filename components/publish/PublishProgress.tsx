@@ -1,35 +1,52 @@
 import { cn } from "@/lib/utils";
 
 const STEPS = [
-  { n: 1, label: "Tipo"         },
-  { n: 2, label: "Localização"  },
-  { n: 3, label: "Detalhes"     },
-  { n: 4, label: "Fotos"        },
+  { n: 1, label: "Tipo"        },
+  { n: 2, label: "Localização" },
+  { n: 3, label: "Detalhes"   },
+  { n: 4, label: "Fotos"      },
 ] as const;
 
-interface Props { current: number }
+interface Props {
+  current:      number;
+  onStepClick?: (step: number) => void;  // se definido → stepper clicável
+}
 
-export function PublishProgress({ current }: Props) {
+export function PublishProgress({ current, onStepClick }: Props) {
   return (
     <div className="flex items-center gap-0 w-full max-w-xl mx-auto mb-8">
       {STEPS.map(({ n, label }, i) => {
-        const done   = n < current;
-        const active = n === current;
+        const done      = n < current;
+        const active    = n === current;
+        const clickable = !!onStepClick;
+
         return (
           <div key={n} className="flex items-center flex-1 last:flex-none">
             <div className="flex flex-col items-center gap-1.5">
-              <div className={cn(
-                "w-8 h-8 rounded-full flex items-center justify-center text-sm font-sans font-semibold transition-all",
-                done   && "bg-trust text-white",
-                active && "bg-navy text-white ring-4 ring-navy/20",
-                !done && !active && "bg-warm-dark text-faint border border-border"
-              )}>
+              <button
+                type="button"
+                onClick={() => onStepClick?.(n)}
+                disabled={!clickable}
+                className={cn(
+                  "w-8 h-8 rounded-full flex items-center justify-center text-sm font-sans font-semibold transition-all",
+                  done   && "bg-trust text-white",
+                  active && "bg-navy text-white ring-4 ring-navy/20",
+                  !done && !active && "bg-warm-dark text-faint border border-border",
+                  clickable && !active && "hover:ring-2 hover:ring-navy/30 cursor-pointer",
+                  clickable && active && "cursor-default",
+                  !clickable && "cursor-default"
+                )}
+                title={clickable && !active ? `Ir para ${label}` : undefined}
+              >
                 {done ? "✓" : n}
-              </div>
+              </button>
               <span className={cn(
-                "text-xs font-sans whitespace-nowrap",
-                active ? "text-navy font-semibold" : done ? "text-trust" : "text-faint"
-              )}>
+                "text-xs font-sans whitespace-nowrap transition-colors",
+                active    ? "text-navy font-semibold" : done ? "text-trust" : "text-faint",
+                clickable && !active && "hover:text-navy cursor-pointer"
+              )}
+                onClick={() => onStepClick?.(n)}
+              >
                 {label}
               </span>
             </div>

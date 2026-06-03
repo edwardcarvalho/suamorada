@@ -8,30 +8,26 @@ import { Button } from "@/components/ui/Button";
 import { cn } from "@/lib/utils";
 import toast from "react-hot-toast";
 
+/** Remove pontos/vírgulas de separadores de milhares PT (ex: "285.000" → 285000) */
+export function parsePrice(s: string | number): number {
+  if (typeof s === "number") return s;
+  return Number(s.replace(/\./g, "").replace(",", ".")) || 0;
+}
+
 async function uploadFile(file: File): Promise<{ url: string; key: string }> {
-  // 1. Pedir signed URL
-  const res = await fetch("/api/upload/signed-url", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ filename: file.name, contentType: file.type, size: file.size }),
-  });
+  const form = new FormData();
+  form.append("file", file);
 
-  if (!res.ok) throw new Error("Erro ao obter URL de upload");
-  const { uploadUrl, publicUrl, key } = await res.json();
-
-  // 2. Upload directo para R2
-  try {
-    await fetch(uploadUrl, { method: "PUT", body: file, headers: { "Content-Type": file.type } });
-  } catch {
-    // Em dev sem R2, usa object URL local como fallback
-    return { url: URL.createObjectURL(file), key };
+  const res = await fetch("/api/upload/file", { method: "POST", body: form });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error ?? "Erro no upload");
   }
-
-  return { url: publicUrl, key };
+  return res.json();
 }
 
 export function Step4Photos() {
-  const { data, addImage, updateImage, removeImage, reorderImages, setStep } = usePublishStore();
+  const { data, editId, addImage, updateImage, removeImage, reorderImages, setStep } = usePublishStore();
   const [isSubmitting, setIsSubmitting] = React.useState(false);
 
   const onDrop = React.useCallback(async (files: File[]) => {
@@ -72,13 +68,56 @@ export function Step4Photos() {
     if (data.images.length < 1) { toast.error("Adicione pelo menos 1 foto"); return; }
 
     setIsSubmitting(true);
+
+    // Modo edição — PUT
+    if (editId) {
+      try {
+        const body = {
+          listingType: data.listingType, propertyType: data.propertyType,
+          title: data.title, description: data.description,
+          price: parsePrice(data.price), priceNegotiable: data.priceNegotiable,
+          bedrooms: data.bedrooms, bathrooms: data.bathrooms,
+          areaUseful:  data.areaUseful  ? Number(data.areaUseful)  : undefined,
+          areaGross:   data.areaGross   ? Number(data.areaGross)   : undefined,
+          floor:       data.floor       ? Number(data.floor)       : undefined,
+          totalFloors: data.totalFloors ? Number(data.totalFloors) : undefined,
+          condition: data.condition || undefined,
+          energyCertificate: data.energyCertificate || undefined,
+          hasGarage: data.hasGarage, hasElevator: data.hasElevator,
+          hasPool: data.hasPool, hasGarden: data.hasGarden,
+          features: data.features,
+          lat: data.lat || "38.7223", lng: data.lng || "-9.1393",
+          addressStreet: data.addressStreet, addressParish: data.addressParish,
+          addressMunicipality: data.addressMunicipality, addressDistrict: data.addressDistrict,
+          addressPostalCode: data.addressPostalCode,
+          images: data.images.map(i => ({ url: i.url, key: i.key, position: i.position, isCover: i.isCover })),
+        };
+        const res = await fetch(`/api/properties/${editId}`, {
+          method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
+        });
+        const json = await res.json();
+        if (!res.ok) throw new Error(json.error ?? "Erro");
+        toast.success("Anúncio actualizado!", { duration: 4000 });
+        // Vai para a página do anúncio — busca o slug
+        const propRes = await fetch(`/api/properties/${editId}`);
+        const prop = propRes.ok ? await propRes.json() : null;
+        window.location.href = prop?.slug ? `/imovel/${prop.slug}` : "/dashboard/imoveis";
+      } catch (err) {
+        toast.error((err as Error).message ?? "Erro ao actualizar");
+      } finally {
+        setIsSubmitting(false);
+      }
+      return;
+    }
+
+    // Modo criação — POST
     try {
       const body = {
         listingType:         data.listingType,
         propertyType:        data.propertyType,
         title:               data.title,
         description:         data.description,
-        price:               Number(data.price),
+        price:               parsePrice(data.price),
         priceNegotiable:     data.priceNegotiable,
         bedrooms:            data.bedrooms,
         bathrooms:           data.bathrooms,
@@ -112,7 +151,7 @@ export function Step4Photos() {
       const json = await res.json();
       if (!res.ok) throw new Error(json.error ?? "Erro");
 
-      toast.success("Anúncio submetido! Em verificação em 24h.");
+      toast.success("Anúncio publicado com sucesso! Já está visível.", { duration: 4000 });
       window.location.href = `/imovel/${json.slug}`;
     } catch (err) {
       toast.error((err as Error).message ?? "Erro ao publicar");
@@ -239,7 +278,7 @@ export function Step4Photos() {
           <h3 className="font-sans font-semibold text-sm text-trust mb-1">✓ Pronto para publicar</h3>
           <p className="text-xs text-muted font-sans">
             <strong>{data.title.slice(0,50)}</strong> · {data.addressMunicipality} ·{" "}
-            {Number(data.price).toLocaleString("pt-PT")} €
+            {parsePrice(data.price).toLocaleString("pt-PT")} €
           </p>
         </div>
       )}

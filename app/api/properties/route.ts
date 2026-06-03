@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
+import { auth } from "@/auth";
 import { db } from "@/lib/db";
 import { properties, propertyImages } from "@/lib/db/schema";
 import { slugify } from "@/lib/utils";
@@ -45,6 +46,11 @@ const schema = z.object({
 });
 
 export async function POST(req: NextRequest) {
+  const session = await auth();
+  if (!session?.user?.id) {
+    return NextResponse.json({ error: "Autenticação necessária" }, { status: 401 });
+  }
+
   const body = await req.json().catch(() => ({}));
   const parsed = schema.safeParse(body);
 
@@ -90,8 +96,9 @@ export async function POST(req: NextRequest) {
       addressMunicipality: d.addressMunicipality,
       addressDistrict:  d.addressDistrict,
       addressPostalCode:d.addressPostalCode,
-      status:           "pending_review",
+      status:           "active",
       publishedAt:      new Date(),
+      userId:           session.user.id,
     }).returning();
 
     if (d.images.length) {

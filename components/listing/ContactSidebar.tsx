@@ -4,7 +4,7 @@ import * as React from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Heart, Share2, Phone, MessageCircle, Mail, ShieldCheck, Star } from "lucide-react";
+import { Heart, Share2, Phone, MessageCircle, Mail } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { AdUnit } from "@/components/ads/AdUnit";
@@ -75,6 +75,7 @@ export function ContactSidebar({
     }
   }
 
+  const [phoneRevealed, setPhoneRevealed] = React.useState(false);
   const initials = agentName.split(" ").map((n) => n[0]).slice(0, 2).join("").toUpperCase();
 
   return (
@@ -99,30 +100,14 @@ export function ContactSidebar({
           <div className="min-w-0">
             <p className="font-sans font-semibold text-sm text-ink">{agentName}</p>
             {agencyName && <p className="text-xs text-muted">{agencyName}</p>}
-            <div className="flex items-center gap-1 mt-1">
-              <span className="bg-trust text-white text-[10px] font-sans font-semibold px-2 py-0.5 rounded-full flex items-center gap-1">
-                <ShieldCheck size={9} /> Responde em &lt; 2h
-              </span>
-            </div>
           </div>
-        </div>
-
-        {/* Stars */}
-        <div className="flex items-center gap-2 mb-5">
-          <div className="flex">
-            {Array.from({ length: 5 }).map((_, i) => (
-              <Star key={i} size={13} className={i < Math.round(agentRating) ? "fill-yellow-400 text-yellow-400" : "text-border"} />
-            ))}
-          </div>
-          <span className="text-xs text-ink font-sans font-semibold">{agentRating}</span>
-          <span className="text-xs text-faint font-sans">({agentReviews} avaliações)</span>
         </div>
 
         {/* Buttons */}
         <div className="flex flex-col gap-2">
           <Button variant="primary" size="lg" className="w-full" onClick={() => setModalOpen(true)}>
             <Mail size={16} />
-            Contactar Agente
+            Contactar
           </Button>
 
           {phone && (
@@ -135,15 +120,27 @@ export function ContactSidebar({
             </Button>
           )}
 
-          <Button variant="secondary" size="md" className="w-full">
-            <Phone size={15} />
-            {phone ? `${phone.slice(0, 4)} *** ***` : "Ver telefone"}
-          </Button>
+          {phone && phoneRevealed ? (
+            <a
+              href={`tel:${phone.replace(/\D/g, "")}`}
+              className="w-full flex items-center justify-center gap-2 border border-border rounded-xl py-2.5 text-sm font-sans font-semibold text-ink hover:bg-warm transition-colors"
+            >
+              <Phone size={15} />
+              {phone}
+            </a>
+          ) : (
+            <Button
+              variant="secondary"
+              size="md"
+              className="w-full"
+              onClick={() => phone && setPhoneRevealed(true)}
+              disabled={!phone}
+            >
+              <Phone size={15} />
+              {phone ? "Ver telefone" : "Telefone não disponível"}
+            </Button>
+          )}
         </div>
-
-        <p className="text-center text-xs text-faint font-sans mt-3">
-          Resposta típica em menos de 24 horas
-        </p>
 
         <div className="h-px bg-border my-4" />
 
